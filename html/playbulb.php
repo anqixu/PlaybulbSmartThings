@@ -9,6 +9,9 @@ $candles = array
   array("D9:77:4B:14:AC:E6","0x0025","0x0023"),
   );
 
+$logfile = "/tmp/playbulbsmartthings.log";
+file_put_contents($logfile, $_SERVER["QUERY_STRING"] . "\n", FILE_APPEND | LOCK_EX);
+
 ############################
 
 $device = $_REQUEST['device'];
