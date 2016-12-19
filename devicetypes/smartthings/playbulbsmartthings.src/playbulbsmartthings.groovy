@@ -50,7 +50,7 @@ metadata {
 	}
     
     preferences {
-        input("ip", "string", title:"IP Address", description: "localhost", defaultValue: "localhost" ,required: true, displayDuringSetup: true)
+        input("ip", "string", title:"IP Address", description: "127.0.0.1", defaultValue: "127.0.0.1" ,required: true, displayDuringSetup: true)
         input("port", "string", title:"Port", description: "80", defaultValue: "80" , required: true, displayDuringSetup: true)
         input("deviceId", "string", title:"Device ID", description: "candle1,candle2,candle3", defaultValue: "candle1,candle2,candle3" , required: true, displayDuringSetup: true)
 	}
@@ -497,7 +497,7 @@ private postAction(uri){
   log.debug "uri ${uri}"
   updateDNI()
   def headers = getHeader()
-  log.debug("headders: " + headers) 
+  log.debug("headers: " + headers) 
   
   def hubAction = new physicalgraph.device.HubAction(
     method: "GET",
@@ -533,7 +533,6 @@ private getHostAddress() {
 private String convertIPtoHex(ipAddress) { 
     String hex = ipAddress.tokenize( '.' ).collect {  String.format( '%02x', it.toInteger() ) }.join()
     return hex
-
 }
 
 private String convertPortToHex(port) {
