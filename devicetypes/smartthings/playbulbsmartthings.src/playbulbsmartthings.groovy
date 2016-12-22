@@ -580,14 +580,10 @@ private lookupDNA() {
   }
 }
 
-// TODO: needed?
 def String getIP() {
   String _ip = ip;
   if (_ip == null) {
     _ip = state.ip;
-    log.debug "using state.ip: $_ip"
-  } else {
-    log.debug "using static ip: $_ip"
   }
   return _ip;
 }
