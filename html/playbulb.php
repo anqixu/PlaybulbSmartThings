@@ -14,10 +14,17 @@ file_put_contents($logfile, $_SERVER["QUERY_STRING"] . "\n", FILE_APPEND | LOCK_
 
 ############################
 
+$ip = $_REQUEST['ip'];;
 $device = $_REQUEST['device'];
 $setting = $_REQUEST['setting'];
 $config = $_REQUEST['config'];
 $refresh = $_REQUEST['refresh'];
+
+if ($ip) {
+   $output = shell_exec("dig TXT +short o-o.myaddr.l.google.com @ns1.google.com");
+   $output = str_replace("\"", "", $output);
+   echo $output;
+} else {
 
 if ($config) {
    $x = 1;
@@ -224,6 +231,8 @@ foreach ($all_devices as $x)
    }
    usleep(500000);
 }
+}
+
 }
 
 ?>
