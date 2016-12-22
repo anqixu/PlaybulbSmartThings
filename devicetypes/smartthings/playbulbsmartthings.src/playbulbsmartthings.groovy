@@ -16,10 +16,11 @@
  *  Date: 2016-01-27
  *
  *  Modified by: Anqi Xu
- *  Date: 2016-12-18
+ *  Date: 2016-12-21
  */
 
 import groovy.json.JsonSlurper
+import groovyx.net.http.HttpResponseException
 
 metadata {
 	definition (name: "PlayBulbSmartThings", namespace: "smartthings", author: "Eric Maycock") {
@@ -50,9 +51,10 @@ metadata {
 	}
     
     preferences {
-        input("ip", "string", title:"IP Address", description: "127.0.0.1", defaultValue: "127.0.0.1" ,required: true, displayDuringSetup: true)
-        input("port", "string", title:"Port", description: "80", defaultValue: "80" , required: true, displayDuringSetup: true)
-        input("deviceId", "string", title:"Device ID", description: "candle1,candle2,candle3", defaultValue: "candle1,candle2,candle3" , required: true, displayDuringSetup: true)
+        input("dna", "string", title:"Domain Name Address", description: "Server's domain name address", defaultValue: "www.google.com" ,required: true, displayDuringSetup: true)
+        input("ip", "string", title:"IP Address", description: "Server's IP (leave blank to auto-set from 'dna' field)", defaultValue: "" ,required: true, displayDuringSetup: true)
+        input("port", "string", title:"Port", description: "Server's port", defaultValue: "80" , required: true, displayDuringSetup: true)
+        input("deviceId", "string", title:"Device ID", description: "Format: candle#{,candle#}", defaultValue: "candle1,candle2,candle3" , required: true, displayDuringSetup: true)
 	}
 
 	tiles (scale: 2){      
@@ -125,9 +127,11 @@ def updated() {
 def configure() {
 	log.debug "configure()"
 	log.debug "Configuring Device For SmartThings Use"
+    lookupDNA()
     state.previousColor="00ffffff"
     state.previousEffect="00000000"
-    if (ip != null && port != null) state.dni = setDeviceNetworkId(ip, port)
+    def _ip = getIP();
+    if (_ip != null && port != null) state.dni = setDeviceNetworkId(_ip, port)
 }
 
 def parse(description) {
@@ -527,7 +531,8 @@ private updateDNI() {
 }
 
 private getHostAddress() {
-	return "${ip}:${port}"
+	def _ip = getIP();
+	return "${_ip}:${port}"
 }
 
 private String convertIPtoHex(ipAddress) { 
@@ -549,10 +554,42 @@ def parseDescriptionAsMap(description) {
 
 private getHeader(){
 	//log.debug "Getting headers"
+    
     def headers = [:]
     headers.put("HOST", getHostAddress())
     //log.debug "Headers are ${headers}"
     return headers
+}
+
+private lookupDNA() {
+  try {
+    def newIP = httpGet(uri: "http://${dna}:${port}/playbulb.php?ip=True") {resp ->
+      log.debug "received new host ip: ${resp.data}"
+      resp.data
+    };
+    newIP = "${newIP}".replaceAll("\n", "");
+    if (newIP.count(".") == 3) {
+      state.ip = newIP;
+      log.debug "lookupDNS updated state.ip to $newIP"
+    } else {
+      log.debug "lookupDNS received invalid IP: $newIP"
+    }
+
+} catch (e) {
+    log.error "lookupDNS failed: $e"
+  }
+}
+
+// TODO: needed?
+def String getIP() {
+  String _ip = ip;
+  if (_ip == null) {
+    _ip = state.ip;
+    log.debug "using state.ip: $_ip"
+  } else {
+    log.debug "using static ip: $_ip"
+  }
+  return _ip;
 }
 
 def toAscii(s){
