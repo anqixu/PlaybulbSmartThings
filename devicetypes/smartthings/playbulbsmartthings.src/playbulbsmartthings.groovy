@@ -51,13 +51,13 @@ metadata {
 	}
     
     preferences {
-        input("dna", "string", title:"Domain Name Address", description: "Server's domain name address", defaultValue: "www.google.com" ,required: true, displayDuringSetup: true)
-        input("ip", "string", title:"IP Address", description: "Server's IP (leave blank to auto-set from 'dna' field)", defaultValue: "" ,required: true, displayDuringSetup: true)
+        input("dna", "string", title:"Domain Name Address", description: "Server's domain name address", defaultValue: "www.google.com" , required: true, displayDuringSetup: true)
+        input("ip", "string", title:"IP Address", description: "Server's IP (leave blank to auto-set from 'dna' field)", defaultValue: "" , required: false, displayDuringSetup: true)
         input("port", "string", title:"Port", description: "Server's port", defaultValue: "80" , required: true, displayDuringSetup: true)
         input("deviceId", "string", title:"Device ID", description: "Format: candle#{,candle#}", defaultValue: "candle1,candle2,candle3" , required: true, displayDuringSetup: true)
 	}
 
-	tiles (scale: 2){      
+	tiles (scale: 2) {      
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
 				attributeState "on", label:'${name}', action:"switch.off", icon:"st.lights.philips.hue-single", backgroundColor:"#79b821", nextState:"turningOff"
@@ -127,15 +127,16 @@ def updated() {
 def configure() {
 	log.debug "configure()"
 	log.debug "Configuring Device For SmartThings Use"
+    state.ip = null;
+    state.dniTime = null;
     lookupDNA()
     state.previousColor="00ffffff"
     state.previousEffect="00000000"
-    def _ip = getIP();
-    if (_ip != null && port != null) state.dni = setDeviceNetworkId(_ip, port)
 }
 
 def parse(description) {
 	//log.debug "Parsing: ${description}"
+    log.debug "Parsing ..."
     def map = [:]
     def descMap = parseDescriptionAsMap(description)
     //log.debug "descMap: ${descMap}"
@@ -167,7 +168,7 @@ def parse(description) {
     }
     if (result.containsKey("effect")) {
         if (result.effect == "00000000") {
-            toggleTiles("all")
+            toggleTiles("none")
         }
         else {
             toggleTiles(getEffectName(result.effect))
@@ -433,9 +434,11 @@ def reset() {
 	log.debug "reset()"
 	setColor(white: "ff")
 }
+
 def refresh() {
 	log.debug "refresh()"
     def uri = "/playbulb.php?device=${deviceId}&refresh=true"
+    state.dniTime = null;
     postAction(uri)
 }
 
@@ -499,6 +502,7 @@ def rgbToHex(rgb) {
 
 private postAction(uri){ 
   log.debug "uri ${uri}"
+  lookupDNA()
   updateDNI()
   def headers = getHeader()
   log.debug("headers: " + headers) 
@@ -508,7 +512,7 @@ private postAction(uri){
     path: uri,
     headers: headers
   )
-  hubAction    
+  hubAction
 }
 
 private setDeviceNetworkId(ip, port = null){
@@ -562,6 +566,27 @@ private getHeader(){
 }
 
 private lookupDNA() {
+  def update = false;
+  if (state.dniTime == null) {
+  	update = true;
+    state.dniTime = now();
+  } else {
+  	def newDniTime = now();
+    def elapsed = newDniTime - state.dniTime;
+    def threshold = 1000 * 60 * 60 * 6; // 6 hours
+    if (elapsed >= threshold) {
+      //log.debug "lookupDNS skipping since $elapsed >= $threshold"
+      update = true;
+      state.dniTime = newDniTime;
+    //} else {
+      //log.debug "lookupDNS skipping since $elapsed < $threshold"
+    }
+  }
+
+  if (!update) {
+    return;
+  }
+
   try {
     def newIP = httpGet(uri: "http://${dna}:${port}/playbulb.php?ip=True") {resp ->
       log.debug "received new host ip: ${resp.data}"
@@ -574,6 +599,9 @@ private lookupDNA() {
     } else {
       log.debug "lookupDNS received invalid IP: $newIP"
     }
+    
+    def _ip = getIP();
+    if (_ip != null && port != null) state.dni = setDeviceNetworkId(_ip, port)    
 
 } catch (e) {
     log.error "lookupDNS failed: $e"
